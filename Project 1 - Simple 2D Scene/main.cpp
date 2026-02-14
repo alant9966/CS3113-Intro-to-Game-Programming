@@ -11,9 +11,7 @@
 #include "raylib.h"
 #include <stdlib.h>
 #include <stdio.h>
-
-// oooh i can do outer wilds
-// model of solar system -> top down view
+#include <math.h>
 
 // OBJECTS: sun, twins, timber hearth (+attlerock), brittle hollow (+lantern),
 //       giant's deep, dark bramble, (maybe) interloper
@@ -22,7 +20,6 @@
     // restart game state after supernova (fade in from white)
 // RELATIVE POSITION: attlerock and hollow's lantern orbitting around planet
 // BACKGROUND: space, main music theme
-
 
 // maybe - wandering quantum moon?
 // need a second translation pattern (not orbitting) -> maybe deep space satellite going up and down bc top down view, slowing down at ends
@@ -34,6 +31,8 @@ enum AppStatus { TERMINATED, RUNNING };
 constexpr int SCREEN_WIDTH  = 1440,
               SCREEN_HEIGHT = 900,
               FPS           = 60;
+
+constexpr float ORBIT_SPEED = 0.5f;
 
 constexpr Vector2 ORIGIN = { SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
 
@@ -51,27 +50,39 @@ constexpr char OUTER_WILDS_BG[]     = "assets/ow_space.png",
 
 // Global Variables
 AppStatus gAppStatus = RUNNING;
+float gPreviousTicks           = 0.0f,
+      gTwinsOrbitLocation      = 0.0f,
+      gHearthOrbitLocation     = 0.0f,
+      gHollowOrbitLocation     = 0.0f,
+      gGiantOrbitLocation      = 0.0f,
+      gBrambleOrbitLocation    = 0.0f,
+      gInterloperOrbitLocation = 0.0f;
+
 Vector2 gBgPosition             = ORIGIN,
         gSunPosition            = ORIGIN,
         gSunScale               = { 0.03f, 0.03f },
-        gTwinsPosition          = { ORIGIN.x + 100.0f, ORIGIN.y },
         gTwinsScale             = { 0.007f, 0.007f },
-        gTimberHearthPosition   = { ORIGIN.x + 200.0f, ORIGIN.y },
         gTimberHearthScale      = { 0.006f, 0.006f },
-        gAttlerockPosition      = { ORIGIN.x + 230.0f, ORIGIN.y },
+        gAttlerockPosition      = { ORIGIN.x + 230.0f, ORIGIN.y }, // TODO delete
         gAttlerockScale         = { 0.002f, 0.002f },
-        gBrittleHollowPosition  = { ORIGIN.x + 300.0f, ORIGIN.y },
         gBrittleHollowScale     = { 0.007f, 0.007f },
-        gHollowsLanternPosition = { ORIGIN.x + 330.0f, ORIGIN.y },
+        gHollowsLanternPosition = { ORIGIN.x + 330.0f, ORIGIN.y }, // TODO delete
         gHollowsLanternScale    = { 0.003f, 0.003f },
-        gGiantsDeepPosition     = { ORIGIN.x + 420.0f, ORIGIN.y },
         gGiantsDeepScale        = { 0.015f, 0.015f },
-        gDarkBramblePosition    = { ORIGIN.x + 540.0f, ORIGIN.y },
         gDarkBrambleScale       = { 0.01f, 0.01f },
-        gInterloperPosition     = { ORIGIN.x - 640.0f, ORIGIN.y },
+        
         gInterloperScale        = { 0.004f, 0.004f },
         gQuantumMoonPosition    = { ORIGIN.x, ORIGIN.y },
         gQuantumMoonScale       = { 1.0f, 1.0f };
+
+Vector2 gTwinsPosition,
+        gTimberHearthPosition,
+        // gAttlerockPosition,
+        gBrittleHollowPosition,
+        // gHollowsLanternPosition,
+        gGiantsDeepPosition,
+        gDarkBramblePosition,
+        gInterloperPosition;
 
 Texture2D gBgTexture,
           gSunTexture,
@@ -110,6 +121,14 @@ void initialise()
     gInterloperTexture = LoadTexture(INTERLOPER_FP);
     gQuantumMoonTexture = LoadTexture(QUANTUM_MOON_FP);
 
+    // Randomize starting positions
+    gTwinsOrbitLocation = ((float)rand() / RAND_MAX) * 2.0f * 3.1415926535f;
+    gHearthOrbitLocation = ((float)rand() / RAND_MAX) * 2.0f * 3.1415926535f;
+    gHollowOrbitLocation = ((float)rand() / RAND_MAX) * 2.0f * 3.1415926535f;
+    gGiantOrbitLocation = ((float)rand() / RAND_MAX) * 2.0f * 3.1415926535f;
+    gBrambleOrbitLocation = ((float)rand() / RAND_MAX) * 2.0f * 3.1415926535f;
+    gInterloperOrbitLocation = ((float)rand() / RAND_MAX) * 2.0f * 3.1415926535f;
+
     SetTargetFPS(FPS);
 }
 
@@ -118,7 +137,46 @@ void processInput()
     if (WindowShouldClose()) gAppStatus = TERMINATED;
 }
 
-void update() {}
+void update() {
+    // Delta Time
+    float ticks = (float) GetTime();          
+    float deltaTime = ticks - gPreviousTicks;
+    gPreviousTicks = ticks;
+
+    // Fixed orbits
+    gTwinsOrbitLocation -= (ORBIT_SPEED / sqrt(100.0f)) * deltaTime;
+    gTwinsPosition.x = ORIGIN.x + cos(gTwinsOrbitLocation) * 100.0f;
+    gTwinsPosition.y = ORIGIN.y + sin(gTwinsOrbitLocation) * 100.0f;
+
+    gHearthOrbitLocation -= (ORBIT_SPEED / sqrt(200.0f)) * deltaTime;
+    gTimberHearthPosition.x = ORIGIN.x + cos(gHearthOrbitLocation) * 200.0f;
+    gTimberHearthPosition.y = ORIGIN.y + sin(gHearthOrbitLocation) * 200.0f;
+
+    gHollowOrbitLocation -= (ORBIT_SPEED / sqrt(300.0f)) * deltaTime;
+    gBrittleHollowPosition.x = ORIGIN.x + cos(gHollowOrbitLocation) * 300.0f;
+    gBrittleHollowPosition.y = ORIGIN.y + sin(gHollowOrbitLocation) * 300.0f;
+
+    gGiantOrbitLocation -= (ORBIT_SPEED / sqrt(420.0f)) * deltaTime;
+    gGiantsDeepPosition.x = ORIGIN.x + cos(gGiantOrbitLocation) * 420.0f;
+    gGiantsDeepPosition.y = ORIGIN.y + sin(gGiantOrbitLocation) * 420.0f;
+
+    gBrambleOrbitLocation -= (ORBIT_SPEED / sqrt(540.0f)) * deltaTime;
+    gDarkBramblePosition.x = ORIGIN.x + cos(gBrambleOrbitLocation) * 540.0f;
+    gDarkBramblePosition.y = ORIGIN.y + sin(gBrambleOrbitLocation) * 540.0f;
+
+    // Eliptical orbit (for Interloper)
+    gInterloperOrbitLocation -= (ORBIT_SPEED / 10.0) * deltaTime;
+    gInterloperPosition.x = ORIGIN.x - 260.0f + cos(gInterloperOrbitLocation) * 340.0f;
+    gInterloperPosition.y = ORIGIN.y + sin(gInterloperOrbitLocation) * 200.0f;
+
+    // Rotations
+
+
+    // TODO if interloper or ash twin collides with circle hitbox inside sun,
+    // dissapear it
+    // also maybe TODO fix interloper starting at random point in orbit
+
+}
 
 void render()
 {
