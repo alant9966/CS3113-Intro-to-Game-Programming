@@ -100,3 +100,11 @@ bool Map::isSolidTileAt(Vector2 position, float *xOverlap, float *yOverlap)
 
     return true;
 }
+
+bool Map::isCollidingTile(Vector2 position, int tileNum)
+{
+    int tileX = floor((position.x - mLeftBoundary) / mTileSize);
+    int tileY = floor((position.y - mTopBoundary)  / mTileSize);
+    
+    return mLevelData[tileY * mMapColumns + tileX] == tileNum;
+}

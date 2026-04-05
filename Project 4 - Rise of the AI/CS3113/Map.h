@@ -34,6 +34,7 @@ public:
     void build();
     void render();
     bool isSolidTileAt(Vector2 position, float *xOverlap, float *yOverlap);
+    bool isCollidingTile(Vector2 position, int tileNum);
 
     int           getMapColumns()     const { return mMapColumns;     };
     int           getMapRows()        const { return mMapRows;        };

@@ -6,7 +6,7 @@
 enum Direction    { LEFT, UP, RIGHT, DOWN              }; // For walking
 enum EntityStatus { ACTIVE, INACTIVE                   };
 enum EntityType   { PLAYER, BLOCK, PLATFORM, NPC, NONE };
-enum AIType       { WANDERER, FOLLOWER                 };
+enum AIType       { WANDERER, FOLLOWER, FLYER          };
 enum AIState      { WALKING, IDLE, FOLLOWING           };
 
 class Entity
@@ -43,18 +43,37 @@ private:
     bool mIsCollidingRight  = false;
     bool mIsCollidingLeft   = false;
 
+    bool mIsCollidingTopMap    = false;
+    bool mIsCollidingBottomMap = false;
+    bool mIsCollidingRightMap  = false;
+    bool mIsCollidingLeftMap   = false;
+
+    float mWanderMinX = 0.0f;
+    float mWanderMaxX = 0.0f;
+    bool  mIsBoundedWanderer = false;
+
+    Vector2 mFlyDirection = { 1.0f, 0.0f };
+    bool    mFlying       = false;
+
+    bool  mIsInvincible       = false;
+    float mInvincibleTimer    = 0.0f;
+    float mInvincibleDuration = 1.5f;
+
+    float mHitTimer      = 0.0f;
+    float mHitInterval   = 0.1f;
+    bool  mIsCollidingEnemyBottom = false;
+    bool  mIsCollidingEnemySide   = false;
+
     EntityStatus mEntityStatus = ACTIVE;
     EntityType   mEntityType;
 
     AIType  mAIType;
     AIState mAIState;
 
-    bool isColliding(Entity *other) const;
-
-    void checkCollisionY(Entity *collidableEntities, int collisionCheckCount);
+    void checkCollisionY(Entity **collidableEntities, int collisionCheckCount);
     void checkCollisionY(Map *map);
 
-    void checkCollisionX(Entity *collidableEntities, int collisionCheckCount);
+    void checkCollisionX(Entity **collidableEntities, int collisionCheckCount);
     void checkCollisionX(Map *map);
     
     void resetColliderFlags() 
@@ -63,12 +82,21 @@ private:
         mIsCollidingBottom = false;
         mIsCollidingRight  = false;
         mIsCollidingLeft   = false;
+
+        mIsCollidingTopMap    = false;
+        mIsCollidingBottomMap = false;
+        mIsCollidingRightMap  = false;
+        mIsCollidingLeftMap   = false;
+
+        mIsCollidingEnemyBottom = false;
+        mIsCollidingEnemySide   = false;
     }
 
     void animate(float deltaTime);
-    void AIActivate(Entity *target);
+    void AIActivate(Entity *target, Map *map);
     void AIWander();
     void AIFollow(Entity *target);
+    void AIFly(Map *map);
 
 public:
     static constexpr int   DEFAULT_SIZE          = 250;
@@ -86,7 +114,7 @@ public:
     ~Entity();
 
     void update(float deltaTime, Entity *player, Map *map, 
-        Entity *collidableEntities, int collisionCheckCount);
+        Entity **collidableEntities, int collisionCheckCount);
     void render();
     void normaliseMovement() { Normalise(&mMovement); }
 
@@ -104,12 +132,17 @@ public:
 
     void resetMovement() { mMovement = { 0.0f, 0.0f }; }
 
+    void startInvincibility() {
+        mIsInvincible = true;
+        mInvincibleTimer = 0.0f;
+    }
+
     Vector2     getPosition()              const { return mPosition;              }
     Vector2     getMovement()              const { return mMovement;              }
     Vector2     getVelocity()              const { return mVelocity;              }
     Vector2     getAcceleration()          const { return mAcceleration;          }
     Vector2     getScale()                 const { return mScale;                 }
-    Vector2     getColliderDimensions()    const { return mScale;                 }
+    Vector2     getColliderDimensions()    const { return mColliderDimensions;    }
     Vector2     getSpriteSheetDimensions() const { return mSpriteSheetDimensions; }
     Texture2D   getTexture()               const { return mTexture;               }
     TextureType getTextureType()           const { return mTextureType;           }
@@ -119,13 +152,18 @@ public:
     bool        isJumping()                const { return mIsJumping;             }
     int         getSpeed()                 const { return mSpeed;                 }
     float       getAngle()                 const { return mAngle;                 }
+    bool        isInvincible()             const { return mIsInvincible;          }
     EntityType  getEntityType()            const { return mEntityType;            }
     AIType      getAIType()                const { return mAIType;                }
     AIState     getAIState()               const { return mAIState;               }
 
+    bool isColliding(Entity *other) const;
+    bool isCollidingTop()       const { return mIsCollidingTop;       }
+    bool isCollidingBottom()    const { return mIsCollidingBottom;    }
+    bool isCollidingBottomMap() const { return mIsCollidingBottomMap; }
     
-    bool isCollidingTop()    const { return mIsCollidingTop;    }
-    bool isCollidingBottom() const { return mIsCollidingBottom; }
+    bool isCollidingEnemyBottom()   const { return mIsCollidingEnemyBottom; }
+    bool isCollidingEnemySide()     const { return mIsCollidingEnemySide;   }
 
     std::map<Direction, std::vector<int>> getAnimationAtlas() const { return mAnimationAtlas; }
 
@@ -163,6 +201,12 @@ public:
         { mAIState = newState;                     }
     void setAIType(AIType newType)
         { mAIType = newType;                       }
+    void setWanderLims(float minX, float maxX)
+    {
+        mIsBoundedWanderer = true;
+        mWanderMinX = minX;
+        mWanderMaxX = maxX;
+    }
 };
 
 #endif // ENTITY_H

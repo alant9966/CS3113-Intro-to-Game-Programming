@@ -31,12 +31,12 @@ Entity::Entity(Vector2 position, Vector2 scale, const char *textureFilepath,
 
 Entity::~Entity() { UnloadTexture(mTexture); };
 
-void Entity::checkCollisionY(Entity *collidableEntities, int collisionCheckCount)
+void Entity::checkCollisionY(Entity **collidableEntities, int collisionCheckCount)
 {
     for (int i = 0; i < collisionCheckCount; i++)
     {
         // STEP 1: For every entity that our player can collide with...
-        Entity *collidableEntity = &collidableEntities[i];
+        Entity *collidableEntity = collidableEntities[i];
         
         if (isColliding(collidableEntity))
         {
@@ -51,6 +51,11 @@ void Entity::checkCollisionY(Entity *collidableEntities, int collisionCheckCount
             //         vertical velocity.
             if (mVelocity.y > 0) 
             {
+                if (collidableEntity->getEntityType() == NPC) {
+                    mIsCollidingEnemyBottom = true;
+                    continue;
+                }
+
                 mPosition.y -= yOverlap;
                 mVelocity.y  = 0;
                 mIsCollidingBottom = true;
@@ -67,11 +72,11 @@ void Entity::checkCollisionY(Entity *collidableEntities, int collisionCheckCount
     }
 }
 
-void Entity::checkCollisionX(Entity *collidableEntities, int collisionCheckCount)
+void Entity::checkCollisionX(Entity **collidableEntities, int collisionCheckCount)
 {
     for (int i = 0; i < collisionCheckCount; i++)
     {
-        Entity *collidableEntity = &collidableEntities[i];
+        Entity *collidableEntity = collidableEntities[i];
         
         if (isColliding(collidableEntity))
         {            
@@ -85,6 +90,11 @@ void Entity::checkCollisionX(Entity *collidableEntities, int collisionCheckCount
 
             // Skip if barely touching vertically (standing on platform)
             if (yOverlap < Y_COLLISION_THRESHOLD) continue;
+
+            if (collidableEntity->getEntityType() == NPC) {
+                mIsCollidingEnemySide = true;
+                continue;
+            }
 
             float xDistance = fabs(mPosition.x - collidableEntity->mPosition.x);
             float xOverlap  = fabs(xDistance - (mColliderDimensions.x / 2.0f) - (collidableEntity->mColliderDimensions.x / 2.0f));
@@ -128,7 +138,7 @@ void Entity::checkCollisionY(Map *map)
     {
         mPosition.y += yOverlap;   // push down
         mVelocity.y  = 0.0f;
-        mIsCollidingTop = true;
+        mIsCollidingTopMap = true;
     }
 
     // COLLISION BELOW (falling downward)
@@ -138,7 +148,7 @@ void Entity::checkCollisionY(Map *map)
     {
         mPosition.y -= yOverlap;   // push up
         mVelocity.y  = 0.0f;
-        mIsCollidingBottom = true;
+        mIsCollidingBottomMap = true;
     } 
 }
 
@@ -159,7 +169,7 @@ void Entity::checkCollisionX(Map *map)
     {
         mPosition.x -= xOverlap * 1.01f;   // push left
         mVelocity.x  = 0.0f;
-        mIsCollidingRight = true;
+        mIsCollidingRightMap = true;
     }
 
     // COLLISION ON LEFT (moving left)
@@ -168,7 +178,7 @@ void Entity::checkCollisionX(Map *map)
     {
         mPosition.x += xOverlap * 1.01;   // push right
         mVelocity.x  = 0.0f;
-        mIsCollidingLeft = true;
+        mIsCollidingLeftMap = true;
     }
 }
 
@@ -202,29 +212,107 @@ void Entity::animate(float deltaTime)
     }
 }
 
-void Entity::AIWander() { moveLeft(); }
+void Entity::AIWander() {
+    // Wanderer paces between two boundary tiles
+    if (mIsBoundedWanderer) {
+        if      (mPosition.x <= mWanderMinX) mDirection = RIGHT;
+        else if (mPosition.x >= mWanderMaxX) mDirection = LEFT;
+    }
+
+    if (mDirection == LEFT) moveLeft();
+    else                    moveRight();
+}
 
 void Entity::AIFollow(Entity *target)
 {
     switch (mAIState)
     {
     case IDLE:
-        if (Vector2Distance(mPosition, target->getPosition()) < 250.0f) 
-            mAIState = WALKING;
+        if (Vector2Distance(mPosition, target->getPosition()) < 600.0f) 
+            mAIState = FOLLOWING;
         break;
 
-    case WALKING:
-        // Depending on where the player is in respect to their x-position
-        // Change direction of the enemy
-        if (mPosition.x > target->getPosition().x) moveLeft();
-        else                                       moveRight();
-    
-    default:
+    case FOLLOWING:
+        // Calculate normalized direction vector
+        Vector2 direction = Vector2Subtract(target->getPosition(), mPosition);
+
+        if (GetLength(direction) > 0.0f) {
+            direction.x /= GetLength(direction);
+            direction.y /= GetLength(direction);
+        }
+
+        // Calculate velocities
+        mMovement.x = direction.x;
+        mVelocity.y = direction.y * mSpeed;
+
+        mDirection = (mVelocity.x >= 0.0f) ? RIGHT : LEFT;
         break;
     }
 }
 
-void Entity::AIActivate(Entity *target)
+void Entity::AIFly(Map *map) {
+    // Randomize flying direction
+    if (!mFlying) {
+        float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
+        mFlyDirection = {cosf(angle), sinf(angle)};
+        mFlying = true;
+    }
+
+    // Handle collisions with map boundaries
+    if (map != nullptr) {
+        float halfWidth  = mColliderDimensions.x / 2.0f;
+        float halfHeight = mColliderDimensions.y / 2.0f;
+        
+        // Horizontal corrections for out-of-bounds clipping
+        if (mPosition.x - halfWidth <= map->getLeftBoundary()) {
+            mFlyDirection.x = fabs(mFlyDirection.x);
+            mPosition.x = map->getLeftBoundary() + halfWidth;
+            mIsCollidingLeftMap = true;
+        }
+        else if (mPosition.x + halfWidth >= map->getRightBoundary()) {
+            mFlyDirection.x = -fabs(mFlyDirection.x);
+            mPosition.x = map->getRightBoundary() - halfWidth;
+            mIsCollidingRightMap = true;
+        }
+
+        // Vertical corrections for out-of-bounds clipping
+        if (mPosition.y - halfHeight <= map->getTopBoundary()) {
+            mFlyDirection.y = fabs(mFlyDirection.y);
+            mPosition.y = map->getTopBoundary() + halfHeight;
+            mIsCollidingTopMap = true;
+        }
+        else if (mPosition.y + halfHeight >= map->getBottomBoundary()) {
+            mFlyDirection.y = -fabs(mFlyDirection.y);
+            mPosition.y = map->getBottomBoundary() - halfHeight;
+            mIsCollidingBottomMap = true;
+        }
+    }
+
+    // Handle collisions with platforms (randomized direction)
+    if (mIsCollidingTopMap || mIsCollidingBottomMap) mFlyDirection.y = -mFlyDirection.y;
+    if (mIsCollidingLeftMap || mIsCollidingRightMap) mFlyDirection.x = -mFlyDirection.x;
+
+    if (mIsCollidingTopMap || mIsCollidingBottomMap ||
+        mIsCollidingLeftMap || mIsCollidingRightMap)
+    {
+        float angle = atan2f(mFlyDirection.y, mFlyDirection.x) +
+            (((float) rand() / RAND_MAX) * 2.0f - 1.0f) * (PI / 4.0f);
+
+        mFlyDirection = {cosf(angle), sinf(angle)};
+
+        // Small correction for collision handling
+        if (mIsCollidingLeftMap || mIsCollidingRightMap) mPosition.y += mFlyDirection.y * 2.0f;
+        if (mIsCollidingTopMap || mIsCollidingBottomMap) mPosition.x += mFlyDirection.x * 2.0f;
+    }
+
+    // Bounce!
+    mMovement.x = mFlyDirection.x;
+    mVelocity.y = mFlyDirection.y * mSpeed;
+
+    mDirection = (mFlyDirection.x >= 0.0f) ? RIGHT : LEFT;
+}
+
+void Entity::AIActivate(Entity *target, Map *map)
 {
     switch (mAIType)
     {
@@ -236,17 +324,21 @@ void Entity::AIActivate(Entity *target)
         AIFollow(target);
         break;
     
+    case FLYER:
+        AIFly(map);
+        break;
+    
     default:
         break;
     }
 }
 
 void Entity::update(float deltaTime, Entity *player, Map *map, 
-    Entity *collidableEntities, int collisionCheckCount)
+    Entity **collidableEntities, int collisionCheckCount)
 {
     if (mEntityStatus == INACTIVE) return;
     
-    if (mEntityType == NPC) AIActivate(player);
+    if (mEntityType == NPC) AIActivate(player, map);
 
     resetColliderFlags();
 
@@ -265,6 +357,17 @@ void Entity::update(float deltaTime, Entity *player, Map *map,
         mVelocity.y -= mJumpingPower;
     }
 
+    if (mIsInvincible) {
+        mInvincibleTimer += deltaTime;
+        mHitTimer        += deltaTime;
+
+        if (mInvincibleTimer >= mInvincibleDuration) {
+            mIsInvincible    = false;
+            mInvincibleTimer = 0.0f;
+            mHitTimer        = 0.0f;
+        }
+    }
+
     mPosition.y += mVelocity.y * deltaTime;
     checkCollisionY(collidableEntities, collisionCheckCount);
     checkCollisionY(map);
@@ -273,13 +376,20 @@ void Entity::update(float deltaTime, Entity *player, Map *map,
     checkCollisionX(collidableEntities, collisionCheckCount);
     checkCollisionX(map);
 
-    if (mTextureType == ATLAS && GetLength(mMovement) != 0 && mIsCollidingBottom) 
+    if (mTextureType == ATLAS && GetLength(mMovement) != 0 &&
+       (mIsCollidingBottomMap || mEntityType == NPC))
         animate(deltaTime);
 }
 
 void Entity::render()
 {
     if(mEntityStatus == INACTIVE) return;
+
+    Color flicker = WHITE;
+    if (mIsInvincible) {
+        if ((int)(mHitTimer / mHitInterval) % 2 == 0) flicker = WHITE;
+        else                                          flicker = (Color){ 255, 255, 255, 80 };
+    }
 
     Rectangle textureArea;
 
@@ -303,6 +413,8 @@ void Entity::render()
                 mSpriteSheetDimensions.x, 
                 mSpriteSheetDimensions.y
             );
+
+            if (mDirection == LEFT) textureArea.width = -textureArea.width;
         
         default: break;
     }
@@ -325,10 +437,10 @@ void Entity::render()
     DrawTexturePro(
         mTexture, 
         textureArea, destinationArea, originOffset,
-        mAngle, WHITE
+        mAngle, flicker
     );
 
-    displayCollider();
+    // displayCollider();
 }
 
 void Entity::displayCollider() 

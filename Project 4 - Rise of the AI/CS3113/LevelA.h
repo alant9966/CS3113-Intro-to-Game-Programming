@@ -1,11 +1,11 @@
 #include "Scene.h"
 
-constexpr int LEVEL_WIDTH  = 24,
-              LEVEL_HEIGHT = 12;
+constexpr int LEVEL_WIDTH_A  = 24,
+              LEVEL_HEIGHT_A = 12;
 
 class LevelA : public Scene {
 private:
-    unsigned int mLevelData[LEVEL_WIDTH * LEVEL_HEIGHT] = {
+    unsigned int mLevelData[LEVEL_WIDTH_A * LEVEL_HEIGHT_A] = {
         0, 0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0, 0, 0,  0, 0, 0,
         0, 0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0, 0, 0,  0, 0, 0,
         0, 0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0, 0, 0,  0, 0, 0,

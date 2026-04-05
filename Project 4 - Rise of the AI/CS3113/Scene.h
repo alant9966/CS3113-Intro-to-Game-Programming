@@ -3,15 +3,27 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+struct GlobalState
+{
+    int lives = 5;
+    int level = 1;
+
+    Music bgm = {};
+    bool isPlayingBgm = false;
+};
+
 struct GameState
 {
-    Entity *player;
-    Map *map;
+    Entity *player   = nullptr;
+    Entity **enemies = nullptr;
+    Map    *map      = nullptr;
 
-    Music bgm;
-    Sound jumpSound;
+    Music bgm       = {};
+    Sound walkSound = {};
+    Sound jumpSound = {};
+    Sound hitSound  = {};
 
-    int nextSceneID;
+    int nextSceneID = 0;
 };
 
 class Scene 
@@ -22,6 +34,8 @@ protected:
     const char *mBGColourHexCode = "#000000";
     
 public:
+    static GlobalState gGlobalState;
+
     Scene();
     Scene(Vector2 origin, const char *bgHexCode);
 

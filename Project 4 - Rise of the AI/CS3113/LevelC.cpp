@@ -1,22 +1,13 @@
-#include "LevelA.h"
+#include "LevelC.h"
 
-LevelA::LevelA()                                      : Scene { {0.0f}, nullptr   } {}
-LevelA::LevelA(Vector2 origin, const char *bgHexCode) : Scene { origin, bgHexCode } {}
+LevelC::LevelC()                                      : Scene { {0.0f}, nullptr   } {}
+LevelC::LevelC(Vector2 origin, const char *bgHexCode) : Scene { origin, bgHexCode } {}
 
-LevelA::~LevelA() { shutdown(); }
+LevelC::~LevelC() { shutdown(); }
 
-void LevelA::initialise()
+void LevelC::initialise()
 {
     mGameState.nextSceneID = 0;
-
-    // Music from https://opengameart.org/content/first-light-particles-%E2%80%93-cc0-atmospheric-pianoambient-track
-    if (!gGlobalState.isPlayingBgm) {
-        gGlobalState.bgm = LoadMusicStream("assets/first_light_particles.mp3");
-        SetMusicVolume(gGlobalState.bgm, 0.33f);
-        PlayMusicStream(gGlobalState.bgm);
-
-        gGlobalState.isPlayingBgm = true;
-    }
 
     // Asset from https://opengameart.org/content/walking-on-snow-sound
     mGameState.walkSound = LoadSound("assets/SnowWalk.ogg");
@@ -32,7 +23,7 @@ void LevelA::initialise()
         ----------- MAP -----------
     */
     mGameState.map = new Map(
-        LEVEL_WIDTH_A, LEVEL_HEIGHT_A, // map grid cols & rows
+        LEVEL_WIDTH_C, LEVEL_HEIGHT_C, // map grid cols & rows
         (unsigned int *) mLevelData,   // grid data
         "assets/sheet.png",            // texture filepath
         TILE_DIMENSION,                // tile size
@@ -52,13 +43,14 @@ void LevelA::initialise()
 
     // Assets from https://opengameart.org/content/a-platformer-in-the-forest
     mGameState.player = new Entity(
-        { mOrigin.x - 700.0f, mOrigin.y + 150.0f }, // position
-        { 100.0f, 100.0f },                         // scale
-        "assets/characters.png",                    // texture file address
-        ATLAS,                                      // single image or atlas?
-        { 1, 23 },                                  // atlas dimensions
-        playerAnimationAtlas,                       // actual atlas
-        PLAYER                                      // entity type
+        { mGameState.map->getLeftBoundary() + (TILE_DIMENSION * 4.0f),
+          mGameState.map->getTopBoundary()  + (25 * TILE_DIMENSION) - (50.0f / 2.0f) }, 
+        { 100.0f, 100.0f },
+        "assets/characters.png",
+        ATLAS,   
+        { 1, 23 },
+        playerAnimationAtlas,  
+        PLAYER                                    
     );
 
     mGameState.player->setJumpingPower(620.0f);
@@ -72,62 +64,66 @@ void LevelA::initialise()
     /*
         ----------- ENEMIES -----------
     */
-    std::map<Direction, std::vector<int>> slimeAnimationAtlas = {
+    std::map<Direction, std::vector<int>> batAnimationAtlas = {
         {RIGHT,  { 0, 1, 2, 3 }},
         {LEFT,   { 0, 1, 2, 3 }},
-        {UP,     { }},
-        {DOWN,   { }},
+        {UP,     { 0, 1, 2, 3 }},
+        {DOWN,   { 0, 1, 2, 3 }},
     };
-    
-    mGameState.enemies = new Entity*[2];
 
-    // Assets from https://admurin.itch.io/enemy-galore-1
+    mGameState.enemies = new Entity*[3];
+
+    // Assets from https://admurin.itch.io/enemy-galore-1 
     mGameState.enemies[0] = new Entity(
-        { mGameState.map->getLeftBoundary() + (7 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f),
-          mGameState.map->getTopBoundary()  + (8 * TILE_DIMENSION) - (50.0 / 2.0f) },
-        { 150.0f, 50.0f },
-        "assets/Slime_Spiked_Run.png",
+        { mGameState.map->getLeftBoundary() + (TILE_DIMENSION * 3.0f),
+          mGameState.map->getTopBoundary()  + (21 * TILE_DIMENSION) - (50.0 / 2.0f) },
+        { 200.0f, 100.0f },
+        "assets/bat_fly.png",
         ATLAS,
         { 1, 4 },
-        slimeAnimationAtlas,
+        batAnimationAtlas,
         NPC
-    );
-
-    mGameState.enemies[0]->setWanderLims(
-        mGameState.map->getLeftBoundary() + (7  * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f),
-        mGameState.map->getLeftBoundary() + (11 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f)
     );
 
     mGameState.enemies[1] = new Entity(
-        { mGameState.map->getLeftBoundary() + (13 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f),
-          mGameState.map->getTopBoundary()  + (7 * TILE_DIMENSION) - (50.0 / 2.0f) },
-        { 150.0f, 50.0f },
-        "assets/Slime_Spiked_Run.png",
+        { mGameState.map->getLeftBoundary() + (14 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f),
+          mGameState.map->getTopBoundary()  + (15 * TILE_DIMENSION) - (50.0 / 2.0f) },
+        { 200.0f, 100.0f },
+        "assets/bat_fly.png",
         ATLAS,
         { 1, 4 },
-        slimeAnimationAtlas,
+        batAnimationAtlas,
         NPC
     );
 
-    mGameState.enemies[1]->setWanderLims(
-        mGameState.map->getLeftBoundary() + (13 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f),
-        mGameState.map->getLeftBoundary() + (18 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f)
+    mGameState.enemies[2] = new Entity(
+        { mGameState.map->getLeftBoundary() + (6 * TILE_DIMENSION) + (TILE_DIMENSION / 2.0f),
+          mGameState.map->getTopBoundary()  + (8 * TILE_DIMENSION) - (50.0 / 2.0f) },
+        { 200.0f, 100.0f },
+        "assets/bat_fly.png",
+        ATLAS,
+        { 1, 4 },
+        batAnimationAtlas,
+        NPC
     );
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 3; i++)
     {
-        mGameState.enemies[i]->setAIType(WANDERER);
-        mGameState.enemies[i]->setSpeed(50);
-        mGameState.enemies[i]->setFrameSpeed(3);
-
+        mGameState.enemies[i]->setAIType(FOLLOWER);
+        mGameState.enemies[i]->setAIState(IDLE);
+        mGameState.enemies[i]->setSpeed(80);
+        mGameState.enemies[i]->setFrameSpeed(6);
         mGameState.enemies[i]->setColliderDimensions({
             mGameState.enemies[i]->getScale().x / 3.0f,
-            mGameState.enemies[i]->getScale().y
+            mGameState.enemies[i]->getScale().y / 2.0f
         });
+        
+        // Disable gravity for flying enemies
+        mGameState.enemies[i]->setAcceleration({ 0.0f, 0.0f });
     }
 }
 
-void LevelA::update(float deltaTime)
+void LevelC::update(float deltaTime)
 {
     UpdateMusicStream(gGlobalState.bgm);
 
@@ -136,10 +132,10 @@ void LevelA::update(float deltaTime)
         nullptr,                                                           // player
         mGameState.map,                                                    // map
         mGameState.player->isInvincible() ? nullptr : mGameState.enemies,  // collidable entities
-        mGameState.player->isInvincible() ? 0 : 2                          // col. entity count
+        mGameState.player->isInvincible() ? 0 : 3                          // col. entity count
     );
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 3; i++)
     {
         mGameState.enemies[i]->update(
             deltaTime,          
@@ -160,8 +156,8 @@ void LevelA::update(float deltaTime)
     }
 
     if (mGameState.map->isCollidingTile(mGameState.player->getPosition(), 32)) {
-        gGlobalState.level = 2;
-        mGameState.nextSceneID = 1; // B
+        gGlobalState.level = 1;
+        mGameState.nextSceneID = -2; // Win!
     }
 
     if (gGlobalState.lives <= 0) {
@@ -173,7 +169,10 @@ void LevelA::update(float deltaTime)
     // Lose a life and respawn if player falls below map
     if (mGameState.player->getPosition().y > mGameState.map->getBottomBoundary()) {
         gGlobalState.lives--;
-        mGameState.player->setPosition({ mOrigin.x - 700.0f, mOrigin.y + 150.0f });
+        mGameState.player->setPosition({
+            mGameState.map->getLeftBoundary() + (TILE_DIMENSION * 4.0f),
+            mGameState.map->getTopBoundary()  + (25 * TILE_DIMENSION) - (50.0f / 2.0f)
+        });
         mGameState.player->startInvincibility();
     }
 
@@ -191,21 +190,21 @@ void LevelA::update(float deltaTime)
     }
 }
 
-void LevelA::render()
+void LevelC::render()
 {
     ClearBackground(ColorFromHex(mBGColourHexCode));
 
     mGameState.map->render();
     mGameState.player->render();
 
-    for (int i = 0; i < 2; i++) mGameState.enemies[i]->render();
+    for (int i = 0; i < 3; i++) mGameState.enemies[i]->render();
 }
 
-void LevelA::shutdown()
+void LevelC::shutdown()
 {
     delete mGameState.player;
     
-    for (int i = 0; i < 2; i++) delete mGameState.enemies[i];
+    for (int i = 0; i < 3; i++) delete mGameState.enemies[i];
 
     delete mGameState.map;
 
