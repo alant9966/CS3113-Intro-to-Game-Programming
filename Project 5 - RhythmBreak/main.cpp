@@ -1,7 +1,7 @@
 /**
 * Author: Alan Tong
 * Assignment: RhythmBreak
-* Date due: [Your presentation date], 2:00pm
+* Date due: 4/24/26, 2:00pm
 * I pledge that I have completed this assignment without
 * collaborating with anyone else, in conformance with the
 * NYU School of Engineering Policies and Procedures on
